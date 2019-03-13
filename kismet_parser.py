@@ -5,10 +5,10 @@ import re
 import xml.etree.ElementTree as ET
 import sys
 import os.path
-from math import sin, cos, sqrt, atan2, radians
+from math import sin, cos, sqrt, atan2, radians # we need this to calculate distance
 import argparse
 
-# here you can get 8bit hexcolor:
+# here you can get 8bit hexcolor, which KML files use
 # https://www.schemecolor.com/sample?getcolor=942D8C
 
 # Global values
@@ -21,7 +21,7 @@ style = "mystyle"
 formats="full"
 max_distance=0
 
-# defined methods:
+# defined methods
 
 def calc_distance(la1,lo1,la2,lo2):  # get distance in metres
 
@@ -39,6 +39,7 @@ def calc_distance(la1,lo1,la2,lo2):  # get distance in metres
  distance = distance * 1000
  return round(distance,2)
 
+# output format
 output = output + "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n"
 output = output + " <Document>\n"
 output = output + "\t<Style id=\"green\"><IconStyle><Icon><href>icons/ap_green.png</href></Icon></IconStyle></Style>\n"
@@ -59,20 +60,20 @@ parser.add_argument('-l',action="store",dest="log",help="Kismet netxml log file.
 parser.add_argument('-e',action="store",dest="essids",help="Target AP ESSID. Accept multiple values separated by ','.")
 parser.add_argument('-lat',action="store",dest="lat",type=float,help="Gps point langitude.")
 parser.add_argument('-lon',action="store",dest="lon",type=float,help="Gps point longitude.")
-parser.add_argument('-dist',action="store",type=int,dest="dist",help="Show me all networks in perimeter from -lan, -lon. If defined -lat,-lon must be also defined.")
+parser.add_argument('-dist',action="store",type=int,dest="dist",help="Perimeter in metres. If defined -lat,-lon must be also defined.")
 
 parser.add_argument('-mins',action="store",dest="mins",help="Minimum signal strenght in -dBm. Example: -70.")
 
 parser.add_argument('-c',action="store",dest="chan",help="Channel set.")
 parser.add_argument('-enc',action="store",dest="enc",help="Encryption to filer: open,wep,psk,wpa2.\nColors are: open - green, wep - red, blue - aes, yellow - tkip/psk, purple - captive portal.")
-parser.add_argument('-cp',action="store",dest="cp",help="AP with Captive Portal. APs can be separated by comma.")
+parser.add_argument('-cp',action="store",dest="cp",help="AP with Captive Portal. APs can be separated by comma. If this option is defined color of AP will be purple.")
 
 parser.add_argument('-stat',action="store_true",default=False,help="Print statistics and exit.")
 parser.add_argument('-o',action="store",dest="output",help="Output KML file.")
 
 parser.add_argument('-with3d', '--with3d', action="store_true", default=False,help="3d style in output")	# 3d mode
-parser.add_argument('-f', '--format', action="store", dest="formats",help="Output format. Options: essid,signal,full. This options has effect only if used with -with3d option. Default format is: APNAME -signal dBm.")	
-parser.add_argument('-d', action="store_true", default=False,help="Debugging output")		# debug
+parser.add_argument('-f', '--format', action="store", dest="formats",help="Output format. Options: essid,signal,full. This option has effect only if used with -with3d option. Default output format is: AP -dBm.")	
+parser.add_argument('-d', action="store_true", default=False,help="Debugging output. Usefull to check output.")		# debug
 
 # parse all arguments
 args = parser.parse_args()
@@ -158,10 +159,12 @@ if args.chan:
 if kmlfile: 
  if os.path.exists(kmlfile):
   print("Error! Output file exists!")
-  sys.exit(1)
-
-#if tree:
- #sys.stderr.write("File: "+netxml+"parsed successfully!\n")
+  ans = raw_input("Overwrite?y/n:")
+  if not re.search("y",ans): 
+   print("Nothing to do. Exiting")
+   sys.exit(1)
+  else:
+   os.remove(kmlfile)
 
 tree = ET.parse(netxml)
 root = tree.getroot()
@@ -203,7 +206,7 @@ for child in root:
       encryptions.append(enctag)
 
       # here is the issue - some AP accept PSK/TKIP and also AES CCMP - both are WPA, but if we detect TKIP - we
-      # print them as 
+      # print them as tkip network
 
    if element.tag == "BSSID":
     bssid = str(element.text)
@@ -260,7 +263,7 @@ for child in root:
    encryption = "unknown"
 
   # ..
-  if essid not in aplist and netname !="all": # this behaviour works but is buggyyyy
+  if essid not in aplist and netname !="all": # this behaviour works but essid must be set specific
    continue
 
   # create regexp
@@ -270,7 +273,7 @@ for child in root:
   # print("essid")
   # sys.exit(1)  
 
-  # this filter works fine
+  # this filters works fine
   if mins:
    if signal > mins:
     continue
@@ -289,12 +292,9 @@ for child in root:
    if not re.search(encarg,encryption,re.IGNORECASE):
     continue
 
-  # print only filtered aps:
-  # print(essid+encryption)
-
   ap_counter+=1			# count ap results
   
-  # if AP is protected with CP we change linestyle
+  # if AP is protected with CP we change linestyle to purple
   if cplist:				# bug hunter if essid exists
     for apx in cplist:
      if re.search(apx,essid,re.IGNORECASE):
@@ -410,19 +410,7 @@ if kmlfile:
 
 sys.exit(0)
 
-# Idea show only places with best signal!
-
-# riadok 236 still messing up
-
 # bug essid becomes sometimes None
 # because signal is reverse to line heigh we do simple math: -80dBm is max 80-signal=value
 
-# nejaka bugu s cp, ked tam je tak neukazuje dane apcko
-# ked ma essid vo vypise specialny znak napr. &, tak to to xmlko vyhodnoti ako chybu
-# napr. <name chan="8">Tom&Gabi,-57dBm</name>
-# enc filtering nefunguje..
-# allow to show clients, not just ap
-
-# almost done, do not fucked up!
-
-# if icons are missing you must place them to directory where .kml is
+# if icons are not printed well you must place them to directory where .kml is!

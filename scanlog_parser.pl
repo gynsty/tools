@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-# skript parsuje nmap logy ".gnmap" a masscan logy
+# This script parse nmap ".gnmap" or masscan logs and creates -> host template with all sorted ports
 # cat nmap_results.gnmap masscan.log | perl pars.pl > vystup (format pre repp externy test)
 
 my %hosts;

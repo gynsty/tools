@@ -1,0 +1,5 @@
+This tool uses logs ".netxml" from kismet security tool and graphically show results of wifi wardriving in google maps.
+For more check kismet-parser.py --help
+/icons folder contains icons for AP.
+Screnshots are included.
+
